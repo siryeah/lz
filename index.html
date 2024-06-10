@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>龙舟接粽子大赛</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #87CEEB; /* 适合河面的颜色 */
+        }
+        #gameCanvas {
+            display: block;
+            margin: 0 auto;
+            background-color: #87CEEB; /* 适合河面的颜色 */
+        }
+        #startScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: url('start_background.png') no-repeat center center;
+            background-size: cover;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 24px;
+        }
+        #startButton {
+            position: absolute;
+            top: 30%; /* 设置按钮距离顶部30% */
+            padding: 10px 20px;
+            font-size: 24px;
+            cursor: pointer;
+            background-color: rgba(0, 0, 0, 0.5);
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+<div id="startScreen">
+    <button id="startButton">开始游戏</button>
+</div>
+<canvas id="gameCanvas"></canvas>
+<audio id="bgMusic" src="background-music.mp3" loop></audio>
+<audio id="collectSound" src="collect.mp3"></audio>
+<audio id="hitSound" src="hit.mp3"></audio>
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const startScreen = document.getElementById('startScreen');
+    const startButton = document.getElementById('startButton');
+    const bgMusic = document.getElementById('bgMusic');
+    const collectSound = document.getElementById('collectSound');
+    const hitSound = document.getElementById('hitSound');
+
+    const boatImg = new Image();
+    const zongziImg = new Image();
+
+    // 设置图片路径
+    boatImg.src = 'dragon_boat.png';
+    zongziImg.src = 'zongzi.png';
+
+    function resizeCanvas() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
+
+    window.addEventListener('resize', resizeCanvas, false);
+    resizeCanvas();
+
+    const boatSizeRatio = 0.2;  // 龙舟尺寸占屏幕宽度的比例
+    const zongziSizeRatio = 0.1;  // 粽子尺寸占屏幕宽度的比例
+
+    const boat = {
+        x: canvas.width / 2 - canvas.width * boatSizeRatio / 2,  // 根据尺寸比例调整x坐标
+        y: canvas.height - canvas.width * boatSizeRatio - 20,  // 根据尺寸比例调整y坐标，-20用于留出底部空间
+        width: canvas.width * boatSizeRatio,  // 宽度设置为屏幕宽度的比例
+        height: canvas.width * boatSizeRatio,  // 高度设置为与宽度相同的比例
+        move: function(x) {
+            this.x = x - this.width / 2;
+        },
+        update: function() {
+            if (this.x < 0) this.x = 0;
+            if (this.x + this.width > canvas.width) this.x = canvas.width - this.width;
+        },
+        draw: function() {
+            ctx.drawImage(boatImg, this.x, this.y, this.width, this.height);
+        }
+    };
+
+    const zongziType = {
+        img: zongziImg,
+        width: canvas.width * zongziSizeRatio,  // 宽度设置为屏幕宽度的比例
+        height: canvas.width * zongziSizeRatio  // 高度设置为与宽度相同的比例
+    };
+
+    const zongzis = [];
+
+    let score = 0;
+    let gameInterval;
+    let zongziFrequency = 1000;
+    let zongziTimer = 0;
+    let speedMultiplier = 1;
+    let difficultyIncrement = 0.001;
+
+    function createZongzi() {
+        const zongzi = {
+            x: Math.random() * (canvas.width - zongziType.width),
+            y: -zongziType.height,
+            width: zongziType.width,
+            height: zongziType.height,
+            img: zongziType.img
+        };
+        zongzis.push(zongzi);
+        console.log('Zongzi created:', zongzi);
+        console.log('Total zongzis:', zongzis.length);
+    }
+
+    function update() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        boat.update();
+        boat.draw();
+
+        zongziTimer += 16; // 逐渐增加计时器
+
+        if (zongziTimer > zongziFrequency) { // 当计时器超过频率时生成粽子
+            createZongzi();
+            zongziTimer = 0;
+        }
+
+        for (let i = 0; i < zongzis.length; i++) {
+            const zongzi = zongzis[i];
+            zongzi.y += 2 * speedMultiplier;
+            ctx.drawImage(zongzi.img, zongzi.x, zongzi.y, zongzi.width, zongzi.height);
+
+            if (
+                zongzi.y + zongzi.height > boat.y &&
+                zongzi.x < boat.x + boat.width &&
+                zongzi.x + zongzi.width > boat.x
+            ) {
+                collectSound.play();
+                score += 1; // 每吃一个粽子增加1分
+                zongzis.splice(i, 1);
+                i--;
+            } else if (zongzi.y > canvas.height) {
+                hitSound.play();
+                alert('游戏结束！你的得分是：' + score);
+                clearInterval(gameInterval);
+                bgMusic.pause();
+                bgMusic.currentTime = 0;
+                startScreen.style.display = 'flex'; // 显示开始界面
+                return;
+            }
+        }
+
+        ctx.fillStyle = 'black';
+        ctx.font = '20px Arial';
+        ctx.fillText('Score: ' + score, 10, 30);
+
+        speedMultiplier += difficultyIncrement;
+
+        if (zongziFrequency > 300) { // 最小间隔300ms
+            zongziFrequency -= difficultyIncrement * 100;
+            console.log('Updated zongziFrequency:', zongziFrequency);
+        }
+    }
+
+    function startGame() {
+        score = 0;
+        speedMultiplier = 1;
+        zongziFrequency = 1000; // 重置粽子生成频率
+        zongziTimer = 0; // 重置计时器
+        zongzis.length = 0;
+        clearInterval(gameInterval);
+        gameInterval = setInterval(update, 16);
+        bgMusic.play();
+        createZongzi(); // 确保开始时有一个粽子生成
+        console.log('Game started');
+        console.log('Initial zongziFrequency:', zongziFrequency);
+    }
+
+    let imagesLoaded = 0;
+    const totalImages = 2;
+
+    function checkAllImagesLoaded() {
+        imagesLoaded++;
+        if (imagesLoaded === totalImages) {
+            startButton.disabled = false;
+        }
+    }
+
+    boatImg.onload = checkAllImagesLoaded;
+    zongziImg.onload = checkAllImagesLoaded;
+
+    startButton.addEventListener('click', function() {
+        startScreen.style.display = 'none';
+        startGame();
+    });
+
+    canvas.addEventListener('touchmove', function(event) {
+        event.preventDefault();
+        const touch = event.touches[0];
+        boat.move(touch.clientX);
+    });
+</script>
+</body>
+</html>
