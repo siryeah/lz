@@ -76,9 +76,9 @@
     const actualBuoyHeight = 186;
 
     // 屏幕宽度占比
-    const boatWidthRatio = 0.10; // 20%
+    const boatWidthRatio = 0.10; // 15%
     const zongziWidthRatio = 0.10; // 10%
-    const buoyWidthRatio = 0.05; // 10%
+    const buoyWidthRatio = 0.06; // 10%
 
     function calculateProportionalDimensions(actualWidth, actualHeight, screenWidth, widthRatio) {
         const displayWidth = screenWidth * widthRatio;
@@ -141,7 +141,7 @@
     let score = 0;
     let gameInterval;
     let zongziFrequency = 1000;
-    let buoyFrequency = 2000;
+    let buoyFrequency = 3000;
     let zongziTimer = 0;
     let buoyTimer = 0;
     let speedMultiplier = 1;
@@ -191,15 +191,15 @@
         boat.update();
         boat.draw();
 
-        zongziTimer += 16; // 逐渐增加计时器
-        buoyTimer += 16; // 逐渐增加浮标计时器
+        zongziTimer += 16;
+        buoyTimer += 16;
 
-        if (zongziTimer > zongziFrequency) { // 当计时器超过频率时生成粽子
+        if (zongziTimer > zongziFrequency) {
             createZongzi();
             zongziTimer = 0;
         }
 
-        if (buoyTimer > buoyFrequency && buoys.length < zongzis.length) { // 当计时器超过频率时生成浮标，且浮标数量少于粽子数量
+        if (buoyTimer > buoyFrequency && buoys.length < zongzis.length * 0.5) { // 浮标数量少于粽子数量的一半
             createBuoy();
             buoyTimer = 0;
         }
@@ -215,11 +215,10 @@
                 zongzi.x + zongzi.width > boat.x
             ) {
                 collectSound.play();
-                score += 1; // 每吃一个粽子增加1分
+                score += 1;
                 zongzis.splice(i, 1);
                 i--;
             } else if (zongzi.y > canvas.height) {
-                // 粽子掉下未接到，游戏结束
                 hitSound.play();
                 endGame();
                 return;
@@ -236,7 +235,6 @@
                 buoy.x < boat.x + boat.width &&
                 buoy.x + buoy.width > boat.x
             ) {
-                // 碰到浮标，游戏结束
                 hitSound.play();
                 endGame();
                 return;
@@ -252,24 +250,28 @@
 
         speedMultiplier += difficultyIncrement;
 
-        if (zongziFrequency > 300) { // 最小间隔300ms
+        if (zongziFrequency > 300) {
             zongziFrequency -= difficultyIncrement * 100;
+        }
+
+        if (buoyFrequency > 1000) {
+            buoyFrequency -= difficultyIncrement * 50;
         }
     }
 
     function startGame() {
         score = 0;
         speedMultiplier = 1;
-        zongziFrequency = 1000; // 重置粽子生成频率
-        buoyFrequency = 2000; // 重置浮标生成频率
-        zongziTimer = 0; // 重置计时器
-        buoyTimer = 0; // 重置浮标计时器
+        zongziFrequency = 1000;
+        buoyFrequency = 3000;
+        zongziTimer = 0;
+        buoyTimer = 0;
         zongzis.length = 0;
         buoys.length = 0;
         clearInterval(gameInterval);
         gameInterval = setInterval(update, 16);
         bgMusic.play();
-        createZongzi(); // 确保开始时有一个粽子生成
+        createZongzi();
     }
 
     function endGame() {
@@ -281,7 +283,7 @@
     }
 
     let imagesLoaded = 0;
-    const totalImages = 3; // 修改为需要加载的图片数量
+    const totalImages = 3;
 
     function checkAllImagesLoaded() {
         imagesLoaded++;
