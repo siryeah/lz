@@ -22,7 +22,7 @@
             width: 100%;
             height: 100%;
             background: url('start_background.jpg') no-repeat center center;
-            background-size: cover;
+            background-size: cover; /* 确保背景图片完全覆盖屏幕 */
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -31,10 +31,8 @@
             font-size: 24px;
         }
         #startButton {
-            position: absolute;
-            top: 25%; /* 设置按钮距离顶部25% */
             padding: 10px 20px;
-            font-size: 24px;
+            font-size: 20px;
             cursor: pointer;
             background-color: rgba(0, 0, 0, 0.5);
             color: white;
@@ -69,6 +67,25 @@
     zongziImg.src = 'zongzi.png';
     buoyImg.src = 'buoy.png';
 
+    // 使用固定尺寸
+    const actualBoatWidth = 126;
+    const actualBoatHeight = 260;
+    const actualZongziWidth = 186;
+    const actualZongziHeight = 198;
+    const actualBuoyWidth = 100;
+    const actualBuoyHeight = 186;
+
+    // 屏幕宽度占比
+    const boatWidthRatio = 0.15; // 15%
+    const zongziWidthRatio = 0.10; // 10%
+    const buoyWidthRatio = 0.10; // 10%
+
+    function calculateProportionalDimensions(actualWidth, actualHeight, screenWidth, widthRatio) {
+        const displayWidth = screenWidth * widthRatio;
+        const displayHeight = displayWidth * (actualHeight / actualWidth);
+        return { displayWidth, displayHeight };
+    }
+
     function resizeCanvas() {
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
@@ -77,15 +94,22 @@
     window.addEventListener('resize', resizeCanvas, false);
     resizeCanvas();
 
-    const boatSizeRatio = 0.2;  // 龙舟尺寸占屏幕宽度的比例
-    const zongziSizeRatio = 0.1;  // 粽子尺寸占屏幕宽度的比例
-    const buoySizeRatio = 0.1;  // 浮标尺寸占屏幕宽度的比例
+    const boatDimensions = calculateProportionalDimensions(actualBoatWidth, actualBoatHeight, canvas.width, boatWidthRatio);
+    const zongziDimensions = calculateProportionalDimensions(actualZongziWidth, actualZongziHeight, canvas.width, zongziWidthRatio);
+    const buoyDimensions = calculateProportionalDimensions(actualBuoyWidth, actualBuoyHeight, canvas.width, buoyWidthRatio);
+
+    const boatWidth = boatDimensions.displayWidth;
+    const boatHeight = boatDimensions.displayHeight;
+    const zongziWidth = zongziDimensions.displayWidth;
+    const zongziHeight = zongziDimensions.displayHeight;
+    const buoyWidth = buoyDimensions.displayWidth;
+    const buoyHeight = buoyDimensions.displayHeight;
 
     const boat = {
-        x: canvas.width / 2 - canvas.width * boatSizeRatio / 2,  // 根据尺寸比例调整x坐标
-        y: canvas.height - canvas.width * boatSizeRatio - 20,  // 根据尺寸比例调整y坐标，-20用于留出底部空间
-        width: canvas.width * boatSizeRatio,  // 宽度设置为屏幕宽度的比例
-        height: canvas.width * boatSizeRatio,  // 高度设置为与宽度相同的比例
+        x: canvas.width / 2 - boatWidth / 2,
+        y: canvas.height - boatHeight - canvas.height * 0.05,
+        width: boatWidth,
+        height: boatHeight,
         move: function(x) {
             this.x = x - this.width / 2;
         },
@@ -94,20 +118,21 @@
             if (this.x + this.width > canvas.width) this.x = canvas.width - this.width;
         },
         draw: function() {
+            console.log('Drawing boat:', this.x, this.y, this.width, this.height);
             ctx.drawImage(boatImg, this.x, this.y, this.width, this.height);
         }
     };
 
     const zongziType = {
         img: zongziImg,
-        width: canvas.width * zongziSizeRatio,  // 宽度设置为屏幕宽度的比例
-        height: canvas.width * zongziSizeRatio  // 高度设置为与宽度相同的比例
+        width: zongziWidth,
+        height: zongziHeight
     };
 
     const buoyType = {
         img: buoyImg,
-        width: canvas.width * buoySizeRatio,  // 宽度设置为屏幕宽度的比例
-        height: canvas.width * buoySizeRatio  // 高度设置为与宽度相同的比例
+        width: buoyWidth,
+        height: buoyHeight
     };
 
     const zongzis = [];
@@ -174,7 +199,7 @@
             zongziTimer = 0;
         }
 
-        if (buoyTimer > buoyFrequency) { // 当计时器超过频率时生成浮标
+        if (buoyTimer > buoyFrequency && buoys.length < zongzis.length) { // 当计时器超过频率时生成浮标，且浮标数量少于粽子数量
             createBuoy();
             buoyTimer = 0;
         }
@@ -194,8 +219,10 @@
                 zongzis.splice(i, 1);
                 i--;
             } else if (zongzi.y > canvas.height) {
-                zongzis.splice(i, 1);
-                i--;
+                // 粽子掉下未接到，游戏结束
+                hitSound.play();
+                endGame();
+                return;
             }
         }
 
@@ -209,12 +236,9 @@
                 buoy.x < boat.x + boat.width &&
                 buoy.x + buoy.width > boat.x
             ) {
+                // 碰到浮标，游戏结束
                 hitSound.play();
-                alert('游戏结束！你的得分是：' + score);
-                clearInterval(gameInterval);
-                bgMusic.pause();
-                bgMusic.currentTime = 0;
-                startScreen.style.display = 'flex'; // 显示开始界面
+                endGame();
                 return;
             } else if (buoy.y > canvas.height) {
                 buoys.splice(i, 1);
@@ -230,7 +254,6 @@
 
         if (zongziFrequency > 300) { // 最小间隔300ms
             zongziFrequency -= difficultyIncrement * 100;
-            console.log('Updated zongziFrequency:', zongziFrequency);
         }
     }
 
@@ -247,8 +270,14 @@
         gameInterval = setInterval(update, 16);
         bgMusic.play();
         createZongzi(); // 确保开始时有一个粽子生成
-        console.log('Game started');
-        console.log('Initial zongziFrequency:', zongziFrequency);
+    }
+
+    function endGame() {
+        clearInterval(gameInterval);
+        bgMusic.pause();
+        bgMusic.currentTime = 0;
+        alert('游戏结束！你的得分是：' + score);
+        startScreen.style.display = 'flex';
     }
 
     let imagesLoaded = 0;
@@ -257,13 +286,23 @@
     function checkAllImagesLoaded() {
         imagesLoaded++;
         if (imagesLoaded === totalImages) {
+            console.log('All images loaded');
             startButton.disabled = false;
         }
     }
 
-    boatImg.onload = checkAllImagesLoaded;
-    zongziImg.onload = checkAllImagesLoaded;
-    buoyImg.onload = checkAllImagesLoaded;
+    boatImg.onload = function() {
+        console.log('Boat image loaded');
+        checkAllImagesLoaded();
+    };
+    zongziImg.onload = function() {
+        console.log('Zongzi image loaded');
+        checkAllImagesLoaded();
+    };
+    buoyImg.onload = function() {
+        console.log('Buoy image loaded');
+        checkAllImagesLoaded();
+    };
 
     startButton.addEventListener('click', function() {
         startScreen.style.display = 'none';
